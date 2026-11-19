@@ -25,10 +25,10 @@ local CFG = {
     STORY_BOSS = "HAWKS",            -- kartu boss mode STORY
     STORY_DIFF = "NIGHTMARE",        -- difficulty mode STORY
     BALL       = "SPIRAL SHEMON",    -- bola yang dipilih
-    SWAP_INDEX = 1,                  -- tombol SWAP BALL ke berapa (1 = paling kiri)
-    LOOP       = 1.2,                -- detik antar pengecekan (naikkan kalau HP berat)
-    COOLDOWN   = 2.5,                -- jeda minimal antar klik tombol yang sama
-    BUSY       = 10,                 -- tahan klik PLAY X detik setelah layar raid terakhir terlihat
+    SWAP_INDEX = 0.2,                  -- tombol SWAP BALL ke berapa (1 = paling kiri)
+    LOOP       = 0.6,                -- detik antar pengecekan (naikkan kalau HP berat)
+    COOLDOWN   = 1,                -- jeda minimal antar klik tombol yang sama
+    BUSY       = 3,                 -- tahan klik PLAY X detik setelah layar raid terakhir terlihat
 }
 -- ==============================================
 
@@ -587,15 +587,15 @@ end
 --  (1) teks layar yang memuat kata "RAID" (mis. "MADARA RAID"), dan
 --  (2) model/label 3D di workspace dekat pemain yang BUKAN karakter pemain.
 local SCREEN_KEYS = {
-    earthquake = { "QUAKEFATHER RAID", "QUAKE FATHER RAID", "EARTHQUAKE FATHER RAID" },
+    earthquake = { "QUAKEFATHER RAID" },
     broly      = { "BROLY RAID" },
     madara     = { "MADARA RAID" },
     story      = { "BOSS: HAWKS" },
 }
 local WORLD_KEYS = {
-    earthquake = { "QUAKEFATHER", "QUAKE FATHER", "EARTHQUAKE FATHER" },
-    broly      = { "BROLY" },
-    madara     = { "MADARA" },
+    earthquake = { "QUAKEFATHER RAID" },
+    broly      = { "BROLY RAID" },
+    madara     = { "MADARA RAID" },
     story      = { "HAWKS" },
 }
 local SURRENDER_DELAY = 1.5 -- boss salah harus terdeteksi berturut-turut selama X detik
