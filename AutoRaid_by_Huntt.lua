@@ -1,7 +1,5 @@
 -- Auto Raid & Auto Story & Auto Gacha + UI
--- STORY DREADWAKE (QUAKE): Play > Story > DREADWAKE (QUAKE) > Nightmare > QUEUE > START NOW > Spiral Shemon > LOCK AIM > selesai: REPLAY (retry)
--- AUTO LOCK AIM: semua mode boss menekan LOCK AIM setelah bola Spiral Shemon terpasang
--- GACHA: SHOP > tab CRATES > OPEN 1/5 CRATE > klik kartu satu per satu > CONTINUE > ulang
+-- GACHA: SHOP > tab CRATES > OPEN 1/5 CRATE > (jeda 3 detik) REVEAL ALL > CONTINUE > ulang
 -- RAID : Play > Raids > Vote Boss > Vote Nightmare > Spiral Shemon
 -- STORY: Play > Story > HAWKS > Nightmare > QUEUE > START NOW > Spiral Shemon
 -- Execute ulang kapan saja: versi lama otomatis dimatikan dan diganti yang baru.
@@ -27,18 +25,16 @@ local CFG = {
     DIFFICULTY = "NIGHTMARE",        -- NORMAL / HARD / NIGHTMARE
     STORY_BOSS = "HAWKS",            -- kartu boss mode STORY
     STORY_DIFF = "NIGHTMARE",        -- difficulty mode STORY
-    STORY_BOSS_NAME = "HAWKS",       -- teks "BOSS: xxx" di peta story (diisi otomatis sesuai tombol)
-    AUTO_LOCK     = true,            -- tekan LOCK AIM otomatis setelah bola BALL terpasang (bisa diganti lewat tombol di UI)
-    LOCK_NEEDS_BALL = true,          -- true = LOCK AIM hanya ditekan kalau bola BALL sudah terpasang
-    LOCK_COOLDOWN = 8,               -- jeda minimal antar tekan LOCK AIM (detik)
     BALL       = "SPIRAL SHEMON",    -- bola yang dipilih
     SWAP_INDEX = 0.1,                  -- tombol SWAP BALL ke berapa (1 = paling kiri)
-    LOOP       = 0.2,                -- detik antar pengecekan (naikkan kalau HP berat)
-    COOLDOWN   = 1,                -- jeda minimal antar klik tombol yang sama
-    BUSY       = 0.4,                 -- tahan klik PLAY X detik setelah layar raid terakhir terlihat
+    LOOP       = 0.1,                -- detik antar pengecekan (naikkan kalau HP berat)
+    COOLDOWN   = 0.4,                -- jeda minimal antar klik tombol yang sama
+    BUSY       = 0.5,                 -- tahan klik PLAY X detik setelah layar raid terakhir terlihat
     GACHA_CRATE  = "COIN CRATE",     -- COIN CRATE / ROYAL CRATE (bisa diganti lewat tombol di UI)
     GACHA_AMOUNT = 5,                -- 1 = OPEN 1 CRATE, 5 = OPEN 5 CRATES (bisa diganti lewat tombol di UI)
     OPEN_WAIT    = 2.5,              -- tunggu setelah menekan OPEN (animasi crate)
+    GACHA_REVEAL = true,             -- true = tekan REVEAL ALL setelah bayar di toko (false = klik kartu satu per satu)
+    REVEAL_DELAY = 3,                -- jeda (detik) setelah OPEN/bayar sebelum menekan REVEAL ALL
 }
 -- ==============================================
 
@@ -46,7 +42,7 @@ local CFG = {
 local G = (getgenv and getgenv()) or _G -- cadangan kalau executor tidak punya getgenv
 if G.AutoRaid then pcall(G.AutoRaid.Destroy) end
 if G.AutoGacha then pcall(G.AutoGacha.Destroy) end -- script AutoGacha lama (terpisah)
-local S = { enabled = false, mode = nil, alive = true, status = "Pilih RAID atau STORY", busyUntil = 0, autoLock = CFG.AUTO_LOCK }
+local S = { enabled = false, mode = nil, alive = true, status = "Pilih RAID atau STORY", busyUntil = 0 }
 G.AutoRaid = S
 
 
@@ -83,7 +79,6 @@ local BOSS_OPTIONS = {
     broly = { label = "BROLY", vote = "BROLY RAID" },
     madara = { label = "MADARA", vote = "MADARA RAID" },
     story = { label = "STORY (HAWKS)" },
-    dreadwake = { label = "DREADWAKE (QUAKE)" },
     gacha = { label = "AUTO GACHA" },
 }
 local DIFFICULTIES = { "NORMAL", "HARD", "NIGHTMARE" }
@@ -92,17 +87,11 @@ local bossDifficulty = {
     broly = "NIGHTMARE",
     madara = "NIGHTMARE",
     story = "NIGHTMARE",
-    dreadwake = "NIGHTMARE",
-}
--- Mode STORY: kartu di peta story + teks "BOSS: xxx" yang muncul setelah kartu dipilih
-local STORY_MODES = {
-    story     = { card = "HAWKS",             boss = "HAWKS" },
-    dreadwake = { card = "DREADWAKE (QUAKE)", boss = "DREADWAKE" },
 }
 
 local frame = Instance.new("Frame")
-frame.Size = UDim2.fromOffset(300, 384)
-frame.Position = UDim2.new(0, 12, 0.5, -192)
+frame.Size = UDim2.fromOffset(300, 322)
+frame.Position = UDim2.new(0, 12, 0.5, -161)
 frame.BackgroundColor3 = Color3.fromRGB(22, 24, 34)
 frame.BorderSizePixel = 0
 frame.Parent = gui
@@ -164,12 +153,11 @@ makeRow("earthquake", 42)
 makeRow("broly", 82)
 makeRow("madara", 122)
 makeRow("story", 162)
-makeRow("dreadwake", 202)
 
 -- Baris AUTO GACHA: toggle + pilih crate + jumlah OPEN
 local gachaBtn = Instance.new("TextButton")
 gachaBtn.Size = UDim2.fromOffset(138, 34)
-gachaBtn.Position = UDim2.fromOffset(10, 242)
+gachaBtn.Position = UDim2.fromOffset(10, 202)
 gachaBtn.BackgroundColor3 = Color3.fromRGB(150, 55, 60)
 gachaBtn.Text = "AUTO GACHA : OFF"
 gachaBtn.Font = Enum.Font.GothamBold
@@ -180,7 +168,7 @@ Instance.new("UICorner", gachaBtn).CornerRadius = UDim.new(0, 8)
 
 local gachaCrateBtn = Instance.new("TextButton")
 gachaCrateBtn.Size = UDim2.fromOffset(82, 34)
-gachaCrateBtn.Position = UDim2.fromOffset(150, 242)
+gachaCrateBtn.Position = UDim2.fromOffset(150, 202)
 gachaCrateBtn.BackgroundColor3 = Color3.fromRGB(65, 75, 115)
 gachaCrateBtn.Font = Enum.Font.GothamBold
 gachaCrateBtn.TextSize = 11
@@ -190,7 +178,7 @@ Instance.new("UICorner", gachaCrateBtn).CornerRadius = UDim.new(0, 8)
 
 local gachaAmountBtn = Instance.new("TextButton")
 gachaAmountBtn.Size = UDim2.fromOffset(56, 34)
-gachaAmountBtn.Position = UDim2.fromOffset(234, 242)
+gachaAmountBtn.Position = UDim2.fromOffset(234, 202)
 gachaAmountBtn.BackgroundColor3 = Color3.fromRGB(65, 75, 115)
 gachaAmountBtn.Font = Enum.Font.GothamBold
 gachaAmountBtn.TextSize = 11
@@ -198,21 +186,9 @@ gachaAmountBtn.TextColor3 = Color3.new(1, 1, 1)
 gachaAmountBtn.Parent = frame
 Instance.new("UICorner", gachaAmountBtn).CornerRadius = UDim.new(0, 8)
 
--- Tombol AUTO LOCK AIM (berlaku untuk semua boss raid & story)
-local lockAimBtn = Instance.new("TextButton")
-lockAimBtn.Size = UDim2.fromOffset(280, 34)
-lockAimBtn.Position = UDim2.fromOffset(10, 284)
-lockAimBtn.BackgroundColor3 = Color3.fromRGB(40, 160, 90)
-lockAimBtn.Text = "AUTO LOCK AIM : ON"
-lockAimBtn.Font = Enum.Font.GothamBold
-lockAimBtn.TextSize = 11
-lockAimBtn.TextColor3 = Color3.new(1, 1, 1)
-lockAimBtn.Parent = frame
-Instance.new("UICorner", lockAimBtn).CornerRadius = UDim.new(0, 8)
-
 local statusLbl = Instance.new("TextLabel")
 statusLbl.Size = UDim2.new(1, -20, 0, 30)
-statusLbl.Position = UDim2.fromOffset(10, 326)
+statusLbl.Position = UDim2.fromOffset(10, 244)
 statusLbl.BackgroundTransparency = 1
 statusLbl.TextWrapped = true
 statusLbl.TextXAlignment = Enum.TextXAlignment.Left
@@ -224,7 +200,7 @@ statusLbl.Parent = frame
 
 local creditLbl = Instance.new("TextLabel")
 creditLbl.Size = UDim2.new(1, -20, 0, 20)
-creditLbl.Position = UDim2.fromOffset(10, 360)
+creditLbl.Position = UDim2.fromOffset(10, 296)
 creditLbl.BackgroundTransparency = 1
 creditLbl.Text = "Credit by Huntt"
 creditLbl.Font = Enum.Font.GothamBold
@@ -238,7 +214,7 @@ reopenBtn.Name = "HunttFloatingButton"
 reopenBtn.Size = UDim2.fromOffset(54, 54)
 reopenBtn.Position = UDim2.new(0, 16, 0.5, -27)
 reopenBtn.BackgroundColor3 = Color3.fromRGB(22, 24, 34)
-reopenBtn.Text = "👀✌"
+reopenBtn.Text = "🚗"
 reopenBtn.Font = Enum.Font.GothamBold
 reopenBtn.TextSize = 27
 reopenBtn.TextColor3 = Color3.new(1, 1, 1)
@@ -260,8 +236,6 @@ local function refreshUI()
     local gOn = S.mode == "gacha"
     gachaBtn.Text = "AUTO GACHA : " .. (gOn and "ON" or "OFF")
     gachaBtn.BackgroundColor3 = gOn and Color3.fromRGB(40, 160, 90) or Color3.fromRGB(150, 55, 60)
-    lockAimBtn.Text = "AUTO LOCK AIM : " .. (S.autoLock and "ON" or "OFF")
-    lockAimBtn.BackgroundColor3 = S.autoLock and Color3.fromRGB(40, 160, 90) or Color3.fromRGB(150, 55, 60)
     gachaCrateBtn.Text = (CFG.GACHA_CRATE:gsub(" CRATE", ""))
     gachaAmountBtn.Text = "x" .. CFG.GACHA_AMOUNT
     statusLbl.Text = "Status: " .. S.status .. (gOn and ("  |  Dibuka: " .. (S.gachaCount or 0)) or "")
@@ -288,11 +262,11 @@ local function setMode(m)
     S.worldAt, S.worldFound = nil, nil
     last = {}
     if S.mode then
-        if STORY_MODES[S.mode] then
-            CFG.STORY_BOSS, CFG.STORY_BOSS_NAME = STORY_MODES[S.mode].card, STORY_MODES[S.mode].boss
-            CFG.STORY_DIFF = bossDifficulty[S.mode]
+        if S.mode == "story" then
+            CFG.STORY_DIFF = bossDifficulty.story
         elseif S.mode == "gacha" then
             S.gachaBusy = 0
+            S.gachaRevealAt = nil
         else
             CFG.BOSS = BOSS_OPTIONS[S.mode].vote
             CFG.DIFFICULTY = bossDifficulty[S.mode]
@@ -313,7 +287,7 @@ for key, row in pairs(rows) do
         index = (index % #DIFFICULTIES) + 1
         bossDifficulty[key] = DIFFICULTIES[index]
         if S.mode == key then
-            if STORY_MODES[key] then
+            if key == "story" then
                 CFG.STORY_DIFF = bossDifficulty[key]
                 S.storyDiffAt = nil
             else
@@ -325,10 +299,6 @@ for key, row in pairs(rows) do
 end
 
 track(gachaBtn.MouseButton1Click:Connect(function() setMode("gacha") end))
-track(lockAimBtn.MouseButton1Click:Connect(function()
-    S.autoLock = not S.autoLock
-    refreshUI()
-end))
 track(gachaCrateBtn.MouseButton1Click:Connect(function()
     CFG.GACHA_CRATE = (CFG.GACHA_CRATE == "COIN CRATE") and "ROYAL CRATE" or "COIN CRATE"
     refreshUI()
@@ -547,7 +517,7 @@ end
 -- ---------- Deteksi boss yang muncul pada panel voting ----------
 local function wrongBossOnVote()
     if not has("BOSS VOTE", true) then return nil end
-    if not S.mode or STORY_MODES[S.mode] then return nil end
+    if not S.mode or S.mode == "story" then return nil end
     local voteKeywords = {
         earthquake = { "QUAKEFATHER RAID", "QUAKE FATHER RAID", "EARTHQUAKE FATHER RAID" },
         broly = { "BROLY RAID" },
@@ -618,7 +588,7 @@ local function storyStep()
         S.busyUntil = now + CFG.BUSY
 
         -- 1) Kartu boss (label persis di kartu paling atas; "HAWKS" di bawah hanya papan nama)
-        if not has("BOSS: " .. CFG.STORY_BOSS_NAME) then
+        if not has("BOSS: " .. CFG.STORY_BOSS) then
             local card
             for _, o in ipairs(find(CFG.STORY_BOSS, true)) do
                 if not card or o.AbsolutePosition.Y < card.AbsolutePosition.Y then card = o end
@@ -680,14 +650,12 @@ local SCREEN_KEYS = {
     broly      = { "BROLY RAID" },
     madara     = { "MADARA RAID" },
     story      = { "BOSS: HAWKS" },
-    dreadwake  = { "BOSS: DREADWAKE" },
 }
 local WORLD_KEYS = {
     earthquake = { "QUAKEFATHER", "QUAKE FATHER", "EARTHQUAKE FATHER" },
     broly      = { "BROLY" },
     madara     = { "MADARA" },
     story      = { "HAWKS" },
-    dreadwake  = { "DREADWAKE" },
 }
 local SURRENDER_DELAY = 1.5 -- boss salah harus terdeteksi berturut-turut selama X detik
 local NEAR_RADIUS = 400     -- hanya benda 3D sejauh ini dari pemain yang dihitung
@@ -871,14 +839,31 @@ local function gachaStep()
         setStatus("Menekan CONTINUE")
         if gpress("g_continue", cont, 2) then
             S.gachaCount = (S.gachaCount or 0) + 1
+            S.gachaRevealAt = nil
             S.gachaCardsClicked = {}
             refreshUI()
         end
         return
     end
 
-    -- 2) Animasi kartu: klik kartu satu per satu. REVEAL ALL sengaja tidak disentuh.
-    if has("TAP A CARD") then
+    -- 2a) REVEAL ALL: tunggu REVEAL_DELAY detik sejak OPEN (bayar di toko), lalu tekan REVEAL ALL.
+    --     Kalau tombolnya tidak ada, jatuh ke klik kartu satu per satu (2b).
+    local tapCard = has("TAP A CARD")
+    local revealBtn = CFG.GACHA_REVEAL and find("REVEAL ALL")[1]
+    if revealBtn and (tapCard or not inShop) then
+        if not S.gachaRevealAt then S.gachaRevealAt = now + CFG.REVEAL_DELAY end -- mulai di tengah animasi
+        local left = S.gachaRevealAt - now
+        if left > 0 then
+            setStatus("REVEAL ALL dalam " .. math.ceil(left) .. " detik")
+            return
+        end
+        setStatus("Menekan REVEAL ALL")
+        if gpress("g_reveal", revealBtn, 2) then S.gachaBusy = now + 1 end
+        return
+    end
+
+    -- 2b) Animasi kartu (cadangan): klik kartu satu per satu.
+    if tapCard then
         local cam = workspace.CurrentCamera
         local vp = cam and cam.ViewportSize or Vector2.new(4000, 4000)
         local cards = {}
@@ -930,6 +915,7 @@ local function gachaStep()
             setStatus("OPEN " .. CFG.GACHA_AMOUNT .. " " .. CFG.GACHA_CRATE)
             if gpress("g_open", btn, CFG.OPEN_WAIT) then
                 S.gachaCardsClicked = {}
+                S.gachaRevealAt = now + CFG.REVEAL_DELAY -- sudah bayar -> REVEAL ALL setelah jeda
                 S.gachaBusy = now + CFG.OPEN_WAIT
             end
         else
@@ -971,12 +957,10 @@ local function step()
     -- 0) Layar hasil. STORY: tekan REPLAY. RAID: tekan CONTINUE.
     local resultScreen = has("VICTORY") or has("DEFEAT") or has("EVERYTHING YOU EARNED") or has("YOUR DAMAGE")
     if resultScreen then
-        local retryBtn = STORY_MODES[S.mode] and (find("REPLAY", true)[1] or find("RETRY", true)[1])
-        if retryBtn then
+        if S.mode == "story" and has("REPLAY", true) then
             S.busyUntil = tick() + CFG.BUSY
-            setStatus("Menekan RETRY (REPLAY)")
-            local m = ((S.retryTries or 0) % 2 == 0) and "conn" or "vim"
-            if press("replay", retryBtn, 3, m) then S.retryTries = (S.retryTries or 0) + 1 end
+            setStatus("Menekan REPLAY")
+            press("replay", find("REPLAY", true)[1], 3)
             return
         elseif has("CONTINUE", true) then
             S.busyUntil = tick() + CFG.BUSY
@@ -1052,29 +1036,15 @@ local function step()
         return
     end
 
-    -- 3) Sedang bertarung. Saat tombol LOCK AIM muncul dan bola BALL (Spiral Shemon) sudah
-    --    terpasang -> tekan LOCK AIM. Berlaku untuk SEMUA mode boss (raid & story).
-    local lockBtn = find("LOCK AIM", true)[1]
-    if lockBtn or inRound() then
+    -- 3) Sedang bertarung -> tahan, jangan klik apa pun
+    if has("LOCK AIM", true) or inRound() then
         S.busyUntil = tick() + CFG.BUSY
-        S.fightUntil = tick() + 4
-        if not lockBtn then
-            last.lock = nil -- tombol hilang: siap menekan lagi di fase aim berikutnya
-            setStatus("Sedang bertarung")
-        elseif not S.autoLock then
-            setStatus("Sedang bertarung (LOCK AIM manual)")
-        elseif CFG.LOCK_NEEDS_BALL and not has(CFG.BALL) then
-            setStatus("Menunggu " .. CFG.BALL .. " terpasang untuk LOCK AIM")
-        else
-            local m = ((S.lockTries or 0) % 2 == 0) and "conn" or "vim"
-            setStatus("Menekan LOCK AIM")
-            if press("lock", lockBtn, CFG.LOCK_COOLDOWN, m) then S.lockTries = (S.lockTries or 0) + 1 end
-        end
+        setStatus("Sedang bertarung")
         return
     end
 
     -- Mode STORY punya alur sendiri
-    if STORY_MODES[S.mode] then
+    if S.mode == "story" then
         storyStep()
         return
     end
@@ -1218,7 +1188,7 @@ task.spawn(function()
             end)
             if not ok then warn("[AutoRaid] error:", err) end
         end
-        local fast = tick() - (S.lastVoteUI or 0) < 20 or tick() < (S.fightUntil or 0)
+        local fast = tick() - (S.lastVoteUI or 0) < 20
         task.wait((fast or S.mode == "gacha") and 0.5 or CFG.LOOP)
     end
 end)
